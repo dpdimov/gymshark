@@ -177,7 +177,7 @@ canvas{width:100%!important}
   <div class="kpi-row" id="wc-kpis"></div>
   <div class="three-col">
     <div class="chart-container"><div class="chart-title">Cash Cycle Components (Days)</div><canvas id="chart-cycle" height="220"></canvas></div>
-    <div class="chart-container"><div class="chart-title">Cash Flow Components</div><canvas id="chart-cashflow" height="220"></canvas></div>
+    <div class="chart-container"><div class="chart-title">Working Capital Efficiency</div><canvas id="chart-wc-eff" height="220"></canvas></div>
     <div class="chart-container"><div class="chart-title">Net Cash Flow</div><canvas id="chart-netcash" height="220"></canvas></div>
   </div>
   <div class="card">
@@ -328,6 +328,37 @@ function drawLineChart(cid,labels,datasets,opts={}){
     ds.data.forEach((v,i)=>{const x=M.left+(i/(labels.length-1))*cw,y=M.top+((mx-v)/rng)*ch;ctx.fillStyle=ds.color;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill()})});
   labels.forEach((l,i)=>{const x=M.left+(i/(labels.length-1))*cw;ctx.fillStyle='#8a8a9a';ctx.textAlign='center';ctx.font='13px DM Mono';ctx.fillText(l,x,h-M.bottom+20)});
   if(datasets.length>1){let lx=M.left;datasets.forEach(ds=>{ctx.strokeStyle=ds.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,13);ctx.lineTo(lx+16,13);ctx.stroke();ctx.fillStyle='#8a8a9a';ctx.textAlign='left';ctx.font='13px DM Mono';ctx.fillText(ds.label,lx+20,17);lx+=ctx.measureText(ds.label).width+40})}
+}
+
+function drawDualAxisLineChart(cid,labels,leftDatasets,rightDatasets,leftFmt,rightFmt){
+  const{ctx,w,h}=getCtx(cid),M={top:30,right:60,bottom:40,left:55},cw=w-M.left-M.right,ch=h-M.top-M.bottom;
+  ctx.clearRect(0,0,w,h);
+  // Left axis scale
+  var lAll=[];leftDatasets.forEach(d=>lAll.push(...d.data));
+  var lmx=Math.max(...lAll)*1.1,lmn=Math.min(...lAll,0);if(lmn>0)lmn=Math.min(...lAll)*0.9;
+  var lrng=lmx-lmn||1;
+  ctx.strokeStyle='#d8d8dc';ctx.lineWidth=0.5;ctx.font='13px DM Mono';ctx.fillStyle='#8a8a9a';ctx.textAlign='right';
+  for(var i=0;i<=5;i++){var v=lmx-(lrng*i/5),y=M.top+(i/5)*ch;ctx.beginPath();ctx.moveTo(M.left,y);ctx.lineTo(w-M.right,y);ctx.stroke();ctx.fillText(leftFmt?leftFmt(v):v.toFixed(1),M.left-8,y+3)}
+  // Right axis scale
+  var rAll=[];rightDatasets.forEach(d=>rAll.push(...d.data));
+  var rmx=Math.max(...rAll,0)*1.1,rmn=Math.min(...rAll,0)*1.1;if(rmn>0)rmn=0;
+  var rrng=rmx-rmn||1;
+  ctx.textAlign='left';ctx.fillStyle='#8a8a9a';
+  for(var i=0;i<=5;i++){var v=rmx-(rrng*i/5),y=M.top+(i/5)*ch;ctx.fillText(rightFmt?rightFmt(v):v.toFixed(0),w-M.right+8,y+3)}
+  // Zero line for right axis if it crosses
+  if(rmn<0){var zY=M.top+((rmx)/(rrng))*ch;ctx.strokeStyle='#8a8a9a';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(M.left,zY);ctx.lineTo(w-M.right,zY);ctx.stroke();ctx.setLineDash([])}
+  // Draw left datasets
+  leftDatasets.forEach(function(ds){ctx.strokeStyle=ds.color;ctx.lineWidth=2.5;ctx.beginPath();ds.data.forEach(function(v,i){var x=M.left+(i/(labels.length-1))*cw,y=M.top+((lmx-v)/lrng)*ch;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});ctx.stroke();
+    ds.data.forEach(function(v,i){var x=M.left+(i/(labels.length-1))*cw,y=M.top+((lmx-v)/lrng)*ch;ctx.fillStyle=ds.color;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill()})});
+  // Draw right datasets (dashed)
+  rightDatasets.forEach(function(ds){ctx.strokeStyle=ds.color;ctx.lineWidth=2.5;ctx.setLineDash([6,4]);ctx.beginPath();ds.data.forEach(function(v,i){var x=M.left+(i/(labels.length-1))*cw,y=M.top+((rmx-v)/rrng)*ch;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});ctx.stroke();ctx.setLineDash([]);
+    ds.data.forEach(function(v,i){var x=M.left+(i/(labels.length-1))*cw,y=M.top+((rmx-v)/rrng)*ch;ctx.fillStyle=ds.color;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill()})});
+  // X labels
+  labels.forEach(function(l,i){var x=M.left+(i/(labels.length-1))*cw;ctx.fillStyle='#8a8a9a';ctx.textAlign='center';ctx.font='13px DM Mono';ctx.fillText(l,x,h-M.bottom+20)});
+  // Legend
+  var lx=M.left;leftDatasets.concat(rightDatasets).forEach(function(ds,idx){
+    ctx.strokeStyle=ds.color;ctx.lineWidth=2;if(idx>=leftDatasets.length){ctx.setLineDash([6,4])}ctx.beginPath();ctx.moveTo(lx,13);ctx.lineTo(lx+16,13);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#8a8a9a';ctx.textAlign='left';ctx.font='13px DM Mono';ctx.fillText(ds.label,lx+20,17);lx+=ctx.measureText(ds.label).width+30});
 }
 
 function drawStackedBarWithLine(cid,labels,datasets,lineData,lineLabel,lineFmtY,barFmtY,maxY){
@@ -534,16 +565,19 @@ function initWorkCap(){
 
   // Cash cycle components
   drawLineChart('chart-cycle',YEARS,
-    [{label:'Receivable Days',data:D.recDays,color:'#4a7ad4'},
-     {label:'Inventory Days',data:D.invDays,color:'#c8842a'},
-     {label:'Payable Days',data:D.payDays,color:'#2a9d5c'}],
+    [{label:'Receivables',data:D.recDays,color:'#4a7ad4'},
+     {label:'Inventory',data:D.invDays,color:'#c8842a'},
+     {label:'Payables',data:D.payDays,color:'#2a9d5c'}],
     {fmtY:function(v){return v.toFixed(0)+'d'},noZero:true});
 
-  // Cash flow components
-  drawStackedBarWithLine('chart-cashflow',YEARS,
-    [{label:'Net Profit',data:D.netProfit,color:'#2a9d5c'},
-     {label:'D&A',data:D.depAmort,color:'#4a7ad4'}],
-    D.netCash,'Net Cash (£K)',fmtK);
+  // Working capital efficiency
+  var gmPctWC=D.grossMargin.map(function(v,i){return v/D.revenue[i]*100});
+  drawDualAxisLineChart('chart-wc-eff',YEARS,
+    [{label:'Gross Margin',data:gmPctWC,color:'#2a9d5c'},
+     {label:'WC % Rev',data:D.wcPctRev,color:'#c8842a'}],
+    [{label:'Cash Cycle',data:D.cashCycle,color:'#4a7ad4'}],
+    function(v){return v.toFixed(0)+'%'},
+    function(v){return v.toFixed(0)+'d'});
 
   // Net cash
   drawBarChart('chart-netcash',YEARS,[{label:'Net Cash Flow',data:D.netCash,color:function(v){return v>=0?'#2a9d5c':'#d44a5a'}}],{showV:true,fmtY:fmtK,fmtV:function(v){return '£'+(v/1000).toFixed(0)+'K'}});
