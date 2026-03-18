@@ -107,6 +107,7 @@ canvas{width:100%!important}
       <li><strong>Returns</strong> — DuPont decomposition of return on assets into profitability, turnover, and leverage</li>
       <li><strong>Working Capital</strong> — Cash cycle days, working capital efficiency, and full cash flow statement</li>
       <li><strong>Levers</strong> — Interactive scenario tool: adjust price, volume, COGS, overheads, and working capital to see impact on EBIT and cash flow</li>
+      <li><strong>People</strong> — Headcount growth alongside revenue, with per-employee productivity and cost metrics</li>
     </ul>
     <h2>Data</h2>
     <p>Source data from Gymshark's filed accounts (Companies House). Revenue grew from £8.7M (2015) to £437.6M (2021) — a 50x increase in six years.</p>
@@ -118,6 +119,7 @@ canvas{width:100%!important}
   <button class="tab" onclick="showPanel('returns',this)">Returns</button>
   <button class="tab" onclick="showPanel('workcap',this)">Working Capital</button>
   <button class="tab" onclick="showPanel('levers',this)">Levers</button>
+  <button class="tab" onclick="showPanel('people',this)">People</button>
 </div>
 
 <!-- PANEL: P&L -->
@@ -228,6 +230,22 @@ canvas{width:100%!important}
   <div class="annotation">A 1% price increase delivers £964K in extra cash flow — far more than 1% volume growth (£753K) because price flows straight to margin with no incremental cost. COGS reduction (£211K per 1%) has a smaller absolute impact because cost of sales is only 28% of revenue. Working capital levers affect cash flow only, not EBIT.</div>
 </div>
 
+<!-- PANEL: PEOPLE -->
+<div class="panel" id="panel-people">
+  <div class="section-title" style="margin-top:0">People & Productivity</div>
+  <p style="color:var(--text-dim);font-size:12px;margin-bottom:20px;">Headcount growth and per-employee efficiency metrics. Employee numbers from annual filings.</p>
+  <div class="kpi-row" id="people-kpis"></div>
+  <div class="two-col">
+    <div class="chart-container"><div class="chart-title">Revenue & Employees</div><canvas id="chart-rev-emp" height="260"></canvas></div>
+    <div class="chart-container"><div class="chart-title">Revenue & Admin Cost per Employee (£K)</div><canvas id="chart-per-emp" height="260"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-label">People Detail</div>
+    <div id="people-table"></div>
+  </div>
+  <div class="annotation">Headcount grew 16x from 33 to 541 over six years, while revenue grew 50x — meaning revenue per employee rose from £264K to £809K. Admin cost per employee also increased from £98K to £258K, reflecting investment in infrastructure and support functions as the business scaled.</div>
+</div>
+
 <script>
 // === DATA ===
 const YEARS = ['2015','2016','2017','2018','2019','2020','2021'];
@@ -293,7 +311,9 @@ const D = {
   baseEBIT: 17609,
   baseNetCash: 11746,
   baseDailyRev: 282.42,
-  baseDailyCost: 79.52
+  baseDailyCost: 79.52,
+
+  employees:     [33, 49, 100, 139, 261, 377, 541]
 };
 
 // === CHART ENGINE ===
@@ -715,6 +735,51 @@ function updateLevers(){
     {fmtY:fmtK});
 }
 
+// === PEOPLE PANEL ===
+function initPeople(){
+  var revPerEmp=D.revenue.map(function(v,i){return v/D.employees[i]});
+  var adminPerEmp=D.adminExp.map(function(v,i){return v/D.employees[i]});
+  var empCAGR=Math.pow(D.employees[6]/D.employees[0],1/6)-1;
+  var revPerEmpCAGR=Math.pow(revPerEmp[6]/revPerEmp[0],1/6)-1;
+
+  document.getElementById('people-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-label">Employees (2021)</div><div class="kpi-value">'+D.employees[6]+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Headcount CAGR</div><div class="kpi-value positive">'+(empCAGR*100).toFixed(0)+'%</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Revenue / Employee (2021)</div><div class="kpi-value">£'+revPerEmp[6].toFixed(0)+'K</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Rev/Emp CAGR</div><div class="kpi-value positive">'+(revPerEmpCAGR*100).toFixed(0)+'%</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Admin / Employee (2021)</div><div class="kpi-value">£'+adminPerEmp[6].toFixed(0)+'K</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Headcount Growth (6yr)</div><div class="kpi-value">'+(D.employees[6]/D.employees[0]).toFixed(0)+'x</div></div>';
+
+  // Revenue & Employees chart (bars = revenue, line = employees)
+  drawStackedBarWithLine('chart-rev-emp',YEARS,
+    [{label:'Revenue',data:D.revenue,color:'#2a9d5c'}],
+    D.employees,'Employees',function(v){return Math.round(v).toLocaleString()});
+
+  // Revenue per employee & Admin cost per employee
+  drawLineChart('chart-per-emp',YEARS,
+    [{label:'Revenue / Emp',data:revPerEmp,color:'#2a9d5c'},
+     {label:'Admin / Emp',data:adminPerEmp,color:'#d44a5a'}],
+    {fmtY:function(v){return '£'+v.toFixed(0)+'K'},noZero:true});
+
+  // Table
+  var html='<table class="data-table"><thead><tr><th></th>'+YEARS.map(function(y){return '<th class="num">'+y+'</th>'}).join('')+'</tr></thead><tbody>';
+  [{n:'Revenue (£K)',d:D.revenue,f:function(v){return '£'+Math.round(v).toLocaleString()}},
+   {n:'Employees',d:D.employees,f:function(v){return v.toLocaleString()},bold:true},
+   {s:true},
+   {n:'Revenue / Employee (£K)',d:revPerEmp,f:function(v){return '£'+v.toFixed(0)+'K'},bold:true},
+   {n:'Admin Cost / Employee (£K)',d:adminPerEmp,f:function(v){return '£'+v.toFixed(0)+'K'}},
+   {s:true},
+   {n:'Revenue YoY Growth',d:D.revenue.map(function(v,i){return i===0?0:(v/D.revenue[i-1]-1)*100}),f:fmtPct},
+   {n:'Headcount YoY Growth',d:D.employees.map(function(v,i){return i===0?0:(v/D.employees[i-1]-1)*100}),f:fmtPct}
+  ].forEach(function(r){
+    if(r.s){html+='<tr><td colspan="8" style="border:none;height:8px"></td></tr>';return}
+    html+='<tr'+(r.bold?' class="total-row"':'')+'><td>'+r.n+'</td>';
+    r.d.forEach(function(v){html+='<td class="num">'+r.f(v)+'</td>'});
+    html+='</tr>'});
+  html+='</tbody></table>';
+  document.getElementById('people-table').innerHTML=html;
+}
+
 function resetLevers(){
   ['s-price','s-volume','s-cogs','s-overhead'].forEach(function(id){document.getElementById(id).value=1});
   ['s-debtor','s-inv','s-cred'].forEach(function(id){document.getElementById(id).value=1});
@@ -733,6 +798,7 @@ function showPanel(id,btn){
   if(id==='returns')initReturns();
   if(id==='workcap')initWorkCap();
   if(id==='levers')updateLevers();
+  if(id==='people')initPeople();
 }
 var rT;window.addEventListener('resize',function(){clearTimeout(rT);rT=setTimeout(function(){
   var a=document.querySelector('.panel.active');
@@ -741,6 +807,7 @@ var rT;window.addEventListener('resize',function(){clearTimeout(rT);rT=setTimeou
   if(a.id==='panel-returns')initReturns();
   if(a.id==='panel-workcap')initWorkCap();
   if(a.id==='panel-levers')updateLevers();
+  if(a.id==='panel-people')initPeople();
 },200)});
 
 // Init
