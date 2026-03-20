@@ -386,7 +386,7 @@ function drawStackedBarWithLine(cid,labels,datasets,lineData,lineLabel,lineFmtY,
   ctx.clearRect(0,0,w,h);
   const tots=labels.map((_,i)=>datasets.reduce((s,d)=>s+(d.data[i]||0),0)),mx=maxY||Math.max(...tots)*1.1;
   ctx.strokeStyle='#d8d8dc';ctx.lineWidth=0.5;ctx.font='13px DM Mono';ctx.fillStyle='#8a8a9a';ctx.textAlign='right';
-  for(let i=0;i<=5;i++){const v=mx-(mx*i/5),y=M.top+(i/5)*ch;ctx.beginPath();ctx.moveTo(M.left,y);ctx.lineTo(w-M.right,y);ctx.stroke();ctx.fillText(barFmtY?barFmtY(v):'£'+(v/1000).toFixed(0)+'K',M.left-8,y+3)}
+  for(let i=0;i<=5;i++){const v=mx-(mx*i/5),y=M.top+(i/5)*ch;ctx.beginPath();ctx.moveTo(M.left,y);ctx.lineTo(w-M.right,y);ctx.stroke();ctx.fillText(barFmtY?barFmtY(v):'£'+(v/1000).toFixed(0)+'M',M.left-8,y+3)}
   const bw=Math.min(cw/labels.length*0.55,50);
   labels.forEach((l,i)=>{const x=M.left+(i+0.5)*(cw/labels.length)-bw/2;let yB=M.top+ch;
     datasets.forEach(ds=>{const bH=((ds.data[i]||0)/mx)*ch,y=yB-bH;ctx.fillStyle=ds.color;ctx.globalAlpha=0.85;ctx.fillRect(x,y,bw,bH);ctx.globalAlpha=1;yB=y});
@@ -408,6 +408,7 @@ function drawStackedBarWithLine(cid,labels,datasets,lineData,lineLabel,lineFmtY,
 // === FORMATTING HELPERS ===
 function fmtK(v){return v>=0?'£'+(v/1000).toFixed(0)+'K':'-£'+(Math.abs(v)/1000).toFixed(0)+'K'}
 function fmtM(v){return '£'+(v/1000).toFixed(1)+'M'}
+function fmtYM(v){return v>=0?'£'+(v/1000).toFixed(0)+'M':'-£'+(Math.abs(v)/1000).toFixed(0)+'M'}
 function fmtPct(v){return v.toFixed(1)+'%'}
 function numK(v){return (v/1000).toFixed(0)}
 
@@ -425,7 +426,7 @@ function initPnL(){
   // Revenue & Net Profit chart
   drawStackedBarWithLine('chart-rev-np',YEARS,
     [{label:'Revenue',data:D.revenue,color:'#4a7ad4'}],
-    D.netProfit,'Net Profit (£K)',fmtK);
+    D.netProfit,'Net Profit (£M)',fmtYM);
 
   // Cost structure %
   var cogsPct=D.cogs.map((v,i)=>v/D.revenue[i]*100);
@@ -499,7 +500,7 @@ function initBS(){
      {label:'LT Debt',data:D.ltDebt,color:'#d44a5a'}]);
 
   // Cash
-  drawBarChart('chart-cash',YEARS,[{label:'Cash',data:D.cash,color:'#2a9d5c'}],{showV:true,fmtY:fmtK,fmtV:function(v){return '£'+(v/1000).toFixed(0)+'K'}});
+  drawBarChart('chart-cash',YEARS,[{label:'Cash',data:D.cash,color:'#2a9d5c'}],{showV:true,fmtY:fmtYM,fmtV:function(v){return '£'+(v/1000).toFixed(0)+'M'}});
 
   // Table
   var sections=[
@@ -581,7 +582,7 @@ function initWorkCap(){
     '<div class="kpi"><div class="kpi-label">Inventory Days</div><div class="kpi-value">'+D.invDays[6].toFixed(0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Payable Days</div><div class="kpi-value">'+D.payDays[6].toFixed(0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">WC % of Revenue</div><div class="kpi-value">'+D.wcPctRev[6].toFixed(1)+'%</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Net Cash (2021)</div><div class="kpi-value negative">-£'+(Math.abs(D.netCash[6])/1000).toFixed(0)+'K</div></div>';
+    '<div class="kpi"><div class="kpi-label">Net Cash (2021)</div><div class="kpi-value negative">-£'+(Math.abs(D.netCash[6])/1000).toFixed(0)+'M</div></div>';
 
   // Cash cycle components
   drawLineChart('chart-cycle',YEARS,
@@ -600,7 +601,7 @@ function initWorkCap(){
     function(v){return v.toFixed(0)+'d'});
 
   // Net cash
-  drawBarChart('chart-netcash',YEARS,[{label:'Net Cash Flow',data:D.netCash,color:function(v){return v>=0?'#2a9d5c':'#d44a5a'}}],{showV:true,fmtY:fmtK,fmtV:function(v){return '£'+(v/1000).toFixed(0)+'K'}});
+  drawBarChart('chart-netcash',YEARS,[{label:'Net Cash Flow',data:D.netCash,color:function(v){return v>=0?'#2a9d5c':'#d44a5a'}}],{showV:true,fmtY:fmtYM,fmtV:function(v){return '£'+(v/1000).toFixed(0)+'M'}});
 
   // Cash flow table
   var html='<table class="data-table"><thead><tr><th></th>'+YEARS.map(y=>'<th class="num">'+y+'</th>').join('')+'</tr></thead><tbody>';
