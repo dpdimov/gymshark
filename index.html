@@ -538,37 +538,65 @@ function initBS(){
 
 // === RETURNS PANEL ===
 function initReturns(){
+  // NOA = fixed assets + current assets - trade payables (computed from BS)
+  var noa2014=1178, eq2014=1178;
+  function noaAt(i){return D.fixedAssets[i]+D.currentAssets[i]-D.payables[i]}
+  var noaByYear=YEARS.map(function(_,i){return noaAt(i)});
+
+  // Average NOA and equity for each year (opening + closing / 2)
+  var avgNOA=YEARS.map(function(_,i){
+    var open=i===0?noa2014:noaByYear[i-1];
+    return (open+noaByYear[i])/2;
+  });
+  var avgEquity=YEARS.map(function(_,i){
+    var open=i===0?eq2014:D.totalEquity[i-1];
+    return (open+D.totalEquity[i])/2;
+  });
+
+  // DuPont decomposition
+  var profitability=YEARS.map(function(_,i){return D.revenue[i]>0?D.ebit[i]/D.revenue[i]*100:0});
+  var assetTurnover=YEARS.map(function(_,i){return avgNOA[i]>0?D.revenue[i]/avgNOA[i]:0});
+  var leverage=YEARS.map(function(_,i){return avgEquity[i]>0?avgNOA[i]/avgEquity[i]:0});
+  var roa=YEARS.map(function(_,i){return profitability[i]*assetTurnover[i]});
+  var roe=YEARS.map(function(_,i){return roa[i]*leverage[i]});
+
+  // KPIs (2021 = index 6)
+  var peakRoa=Math.max.apply(null,roa);
+  var peakIdx=roa.indexOf(peakRoa);
   document.getElementById('returns-kpis').innerHTML=
-    '<div class="kpi"><div class="kpi-label">ROA (2021)</div><div class="kpi-value">'+D.roa[6].toFixed(1)+'%</div></div>'+
-    '<div class="kpi"><div class="kpi-label">EBIT Margin</div><div class="kpi-value">'+D.profitability[6].toFixed(1)+'%</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Asset Turnover</div><div class="kpi-value">'+D.assetTurnover[6].toFixed(1)+'x</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Leverage</div><div class="kpi-value">'+D.leverage[6].toFixed(2)+'x</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Peak ROA</div><div class="kpi-value positive">'+Math.max(...D.roa).toFixed(1)+'% (2017)</div></div>';
+    '<div class="kpi"><div class="kpi-label">ROA (2021)</div><div class="kpi-value">'+roa[6].toFixed(1)+'%</div></div>'+
+    '<div class="kpi"><div class="kpi-label">EBIT Margin</div><div class="kpi-value">'+profitability[6].toFixed(1)+'%</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Asset Turnover</div><div class="kpi-value">'+assetTurnover[6].toFixed(2)+'x</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Leverage</div><div class="kpi-value">'+leverage[6].toFixed(2)+'x</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Peak ROA</div><div class="kpi-value positive">'+peakRoa.toFixed(1)+'% ('+YEARS[peakIdx]+')</div></div>';
 
   // DuPont components
   drawLineChart('chart-dupont',YEARS,
-    [{label:'EBIT Margin %',data:D.profitability,color:'#c8842a'},
-     {label:'Asset Turnover',data:D.assetTurnover,color:'#4a7ad4'},
-     {label:'Leverage',data:D.leverage,color:'#7c5ec8'}],
+    [{label:'EBIT Margin %',data:profitability,color:'#c8842a'},
+     {label:'Asset Turnover',data:assetTurnover,color:'#4a7ad4'},
+     {label:'Leverage',data:leverage,color:'#7c5ec8'}],
     {fmtY:function(v){return v.toFixed(1)},noZero:true});
 
   // ROA
-  drawBarChart('chart-roa',YEARS,[{label:'ROA %',data:D.roa,color:'#2a9d5c'}],{showV:true,fmtY:function(v){return v.toFixed(0)+'%'},fmtV:function(v){return v.toFixed(0)+'%'}});
+  drawBarChart('chart-roa',YEARS,[{label:'ROA %',data:roa,color:'#2a9d5c'}],{showV:true,fmtY:function(v){return v.toFixed(0)+'%'},fmtV:function(v){return v.toFixed(0)+'%'}});
 
   // Table
-  var html='<table class="data-table"><thead><tr><th></th>'+YEARS.map(y=>'<th class="num">'+y+'</th>').join('')+'</tr></thead><tbody>';
-  [{n:'Revenue (£K)',d:D.revenue,f:function(v){return '£'+Math.round(v).toLocaleString()}},
-   {n:'EBIT (£K)',d:D.ebit,f:function(v){return '£'+Math.round(v).toLocaleString()}},
-   {n:'Net Operating Assets (£K)',d:YEARS.map((_,i)=>D.totalEquity[i]+D.ltDebt[i]),f:function(v){return '£'+Math.round(v).toLocaleString()}},
+  var html='<table class="data-table"><thead><tr><th></th>'+YEARS.map(function(y){return '<th class="num">'+y+'</th>'}).join('')+'</tr></thead><tbody>';
+  [{n:'Revenue (\u00a3K)',d:D.revenue,f:function(v){return '\u00a3'+Math.round(v).toLocaleString()}},
+   {n:'EBIT (\u00a3K)',d:D.ebit,f:function(v){return '\u00a3'+Math.round(v).toLocaleString()}},
+   {n:'Avg Net Operating Assets (\u00a3K)',d:avgNOA,f:function(v){return '\u00a3'+Math.round(v).toLocaleString()}},
+   {n:'Avg Equity (\u00a3K)',d:avgEquity,f:function(v){return '\u00a3'+Math.round(v).toLocaleString()}},
    {s:true},
-   {n:'Profitability (EBIT/Rev)',d:D.profitability,f:fmtPct},
-   {n:'Asset Turnover (Rev/NOA)',d:D.assetTurnover,f:function(v){return v.toFixed(2)+'x'}},
-   {n:'Leverage (NOA/Equity)',d:D.leverage,f:function(v){return v.toFixed(2)+'x'}},
-   {n:'Return on Assets',d:D.roa,f:fmtPct,bold:true}
-  ].forEach(r=>{
+   {n:'Profitability (EBIT/Rev)',d:profitability,f:fmtPct},
+   {n:'Asset Turnover (Rev/Avg NOA)',d:assetTurnover,f:function(v){return v.toFixed(2)+'x'}},
+   {n:'Leverage (Avg NOA/Avg Equity)',d:leverage,f:function(v){return v.toFixed(2)+'x'}},
+   {s:true},
+   {n:'ROA (Margin \u00d7 Turnover)',d:roa,f:fmtPct,bold:true},
+   {n:'ROE (ROA \u00d7 Leverage)',d:roe,f:fmtPct,bold:true}
+  ].forEach(function(r){
     if(r.s){html+='<tr><td colspan="8" style="border:none;height:8px"></td></tr>';return}
     html+='<tr'+(r.bold?' class="total-row"':'')+'><td>'+r.n+'</td>';
-    r.d.forEach(v=>{html+='<td class="num">'+r.f(v)+'</td>'});
+    r.d.forEach(function(v){html+='<td class="num">'+r.f(v)+'</td>'});
     html+='</tr>'});
   html+='</tbody></table>';
   document.getElementById('returns-table').innerHTML=html;
